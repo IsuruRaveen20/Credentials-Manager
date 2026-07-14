@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: vaultops
+          POSTGRES_PASSWORD: vaultops
+          POSTGRES_DB: vaultops
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vaultops -d vaultops"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    env:
+      DATABASE_URL: postgresql://vaultops:vaultops@localhost:5432/vaultops?schema=public
+      REDIS_URL: redis://localhost:6379
+      DEFAULT_ORGANIZATION_ID: "00000000-0000-4000-8000-000000000001"
+      USE_LOCAL_KMS: "true"
+      LOCAL_KMS_MASTER_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      KMS_PROVIDER: local
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared
+        run: pnpm --filter @vaultops/shared build
+
+      - name: Prisma migrate + seed
+        run: |
+          pnpm --filter @vaultops/api exec prisma migrate deploy
+          pnpm --filter @vaultops/api exec prisma db seed
+
+      - name: Build API
+        run: pnpm --filter @vaultops/api exec nest build
+
+      - name: Build Web
+        run: pnpm --filter @vaultops/web build

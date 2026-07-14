@@ -1,0 +1,4 @@
+FROM node:20-bookworm-slim
+# procps provides `ps` — required by `nest start --watch` (child process tree).
+RUN apt-get update && apt-get install -y openssl ca-certificates procps && rm -rf /var/lib/apt/lists/*
+WORKDIR /app

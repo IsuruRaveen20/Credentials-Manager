@@ -1,0 +1,143 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vaultops
+      POSTGRES_PASSWORD: vaultops
+      POSTGRES_DB: vaultops
+    ports:
+      - "${POSTGRES_HOST_PORT:-15432}:5432"
+    volumes:
+      - vaultops_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vaultops -d vaultops"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      # Host 16379 avoids conflict with a local Redis on 6379.
+      - "${REDIS_HOST_PORT:-16379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api.dev
+    ports:
+      - "${API_HOST_PORT:-13001}:3001"
+    environment:
+      NODE_ENV: development
+      PORT: "3001"
+      DATABASE_URL: postgresql://vaultops:vaultops@postgres:5432/vaultops?schema=public
+      REDIS_URL: redis://redis:6379
+      AUTH_MODE: ${AUTH_MODE:-hybrid}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-dev-only-change-me-vaultops-auth-jwt-secret-32b}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:13000}
+      DEFAULT_ORGANIZATION_ID: "${DEFAULT_ORGANIZATION_ID:-00000000-0000-4000-8000-000000000001}"
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-owner@localhost}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-ChangeMe!owner1}
+      ADMIN_FIRST_NAME: ${ADMIN_FIRST_NAME:-WebMee}
+      ADMIN_LAST_NAME: ${ADMIN_LAST_NAME:-Admin}
+      USE_LOCAL_KMS: "true"
+      LOCAL_KMS_MASTER_KEY: ${LOCAL_KMS_MASTER_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+      KMS_PROVIDER: local
+      CLERK_JWKS_URL: ${CLERK_JWKS_URL:-}
+      CLERK_ISSUER: ${CLERK_ISSUER:-}
+      CLERK_AUDIENCE: ${CLERK_AUDIENCE:-}
+      ALLOWED_EMAIL_DOMAINS: ${ALLOWED_EMAIL_DOMAINS:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-development}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+      SUSPICIOUS_REVEAL_THRESHOLD: "8"
+      # Faster file watching across Docker Desktop bind mounts (macOS/Windows).
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - .:/app
+      - vaultops_node_modules:/app/node_modules
+      - vaultops_api_node_modules:/app/apps/api/node_modules
+      - vaultops_web_node_modules:/app/apps/web/node_modules
+      - vaultops_shared_node_modules:/app/packages/shared/node_modules
+    working_dir: /app
+    command: >
+      sh -c "
+        sh infra/docker/dev-bootstrap.sh &&
+        pnpm --filter @vaultops/api exec prisma generate &&
+        pnpm --filter @vaultops/api exec prisma migrate deploy &&
+        pnpm --filter @vaultops/api exec prisma db seed &&
+        pnpm --filter @vaultops/api dev
+      "
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3001/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 180s
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.web.dev
+    ports:
+      - "${WEB_HOST_PORT:-13000}:3000"
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:13001}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      NEXT_PUBLIC_AUTH_REQUIRE_CLERK: ${NEXT_PUBLIC_AUTH_REQUIRE_CLERK:-false}
+      NEXT_PUBLIC_ALLOW_DEV_TOKEN: ${NEXT_PUBLIC_ALLOW_DEV_TOKEN:-}
+      AUTH_MODE: ${AUTH_MODE:-hybrid}
+      NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-development}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+      # Turbopack + polling across Docker Desktop bind mounts.
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+      # Keep compiled routes warm across container restarts.
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      - .:/app
+      - vaultops_node_modules:/app/node_modules
+      - vaultops_api_node_modules:/app/apps/api/node_modules
+      - vaultops_web_node_modules:/app/apps/web/node_modules
+      - vaultops_shared_node_modules:/app/packages/shared/node_modules
+      - vaultops_web_next:/app/apps/web/.next
+    working_dir: /app
+    command: >
+      sh -c "
+        sh infra/docker/dev-bootstrap.sh &&
+        pnpm --filter @vaultops/web exec next dev --turbopack -H 0.0.0.0 -p 3000
+      "
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  vaultops_pg:
+  vaultops_node_modules:
+  vaultops_api_node_modules:
+  vaultops_web_node_modules:
+  vaultops_shared_node_modules:
+  vaultops_web_next:

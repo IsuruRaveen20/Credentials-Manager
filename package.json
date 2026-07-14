@@ -1,0 +1,18 @@
+{
+  "name": "vaultops",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm run --parallel --filter @vaultops/web dev -- --hostname 0.0.0.0 --port 3000",
+    "dev:api": "pnpm --filter @vaultops/api dev",
+    "dev:web": "pnpm --filter @vaultops/web dev",
+    "lint": "pnpm run -r --if-present lint",
+    "test": "pnpm run -r --if-present test",
+    "build": "pnpm run -r build",
+    "db:migrate": "pnpm --filter @vaultops/api exec prisma migrate deploy",
+    "db:generate": "pnpm --filter @vaultops/api exec prisma generate"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

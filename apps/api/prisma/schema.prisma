@@ -1,0 +1,174 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  invited
+  active
+  disabled
+}
+
+model User {
+  id              String     @id @default(uuid())
+  clerkId         String?    @unique
+  email           String     @unique
+  firstName       String?
+  lastName        String?
+  passwordHash    String?
+  emailVerifiedAt DateTime?
+  status          UserStatus @default(invited)
+  inviteTokenHash String?
+  inviteExpiresAt DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  memberships      OrganizationMember[]
+  userRoles        UserRole[]
+  credentials      Credential[]      @relation("CredentialCreator")
+  auditLogs        AuditLog[]
+  sharesReceived   CredentialShare[] @relation("ShareRecipient")
+  sharesGranted    CredentialShare[] @relation("ShareGrantor")
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  members      OrganizationMember[]
+  credentials  Credential[]
+  userRoles    UserRole[]
+  categories   CredentialCategory[]
+}
+
+model OrganizationMember {
+  id             String @id @default(uuid())
+  organizationId String
+  userId         String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+}
+
+model Permission {
+  id   String @id @default(uuid())
+  key  String @unique
+
+  rolePermissions RolePermission[]
+}
+
+model Role {
+  id   String @id @default(uuid())
+  name String @unique
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  id             String @id @default(uuid())
+  organizationId String
+  userId         String
+  roleId         String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId, roleId])
+}
+
+model Credential {
+  id               String    @id @default(uuid())
+  organizationId   String
+  name             String
+  category         String
+  /** username | email | none — how `username` field is interpreted */
+  loginKind        String    @default("username")
+  username         String?
+  /** Non-secret connection host (SSH / DB / etc.). */
+  host             String?
+  /** Non-secret connection port. */
+  port             Int?
+  /** Optional brand logo: data:image/... or https URL (not a secret). */
+  logoDataUrl      String?
+  encryptedPayload String
+  encryptedDek     String
+  kmsKeyId         String
+  tags             String[]  @default([])
+  notesPresent     Boolean   @default(false)
+  /** When set, UI surfaces rotation / expiry reminders. */
+  expiresAt        DateTime?
+  lastRotatedAt    DateTime?
+  createdById      String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User              @relation("CredentialCreator", fields: [createdById], references: [id])
+  shares       CredentialShare[]
+
+  @@index([organizationId, category])
+  @@index([organizationId, expiresAt])
+}
+
+/** Org-managed credential category labels (name only). */
+model CredentialCategory {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model CredentialShare {
+  id           String   @id @default(uuid())
+  credentialId String
+  userId       String
+  grantedById  String
+  createdAt    DateTime @default(now())
+
+  credential Credential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  user       User       @relation("ShareRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  grantedBy  User       @relation("ShareGrantor", fields: [grantedById], references: [id], onDelete: Cascade)
+
+  @@unique([credentialId, userId])
+  @@index([userId])
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  actorId      String?
+  action       String
+  resourceType String?
+  resourceId   String?
+  ip           String?
+  userAgent    String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([resourceType, resourceId])
+}
