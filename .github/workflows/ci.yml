@@ -53,8 +53,9 @@ jobs:
       - name: Build shared
         run: pnpm --filter @vaultops/shared build
 
-      - name: Prisma migrate + seed
+      - name: Prisma generate + migrate + seed
         run: |
+          pnpm --filter @vaultops/api exec prisma generate
           pnpm --filter @vaultops/api exec prisma migrate deploy
           pnpm --filter @vaultops/api exec prisma db seed
 
