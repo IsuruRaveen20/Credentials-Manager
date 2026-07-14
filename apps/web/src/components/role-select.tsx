@@ -9,7 +9,6 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import {
-  ASSIGNABLE_ROLES,
   formatRoleLabel,
   type AssignableRole,
 } from "@/lib/roles";
