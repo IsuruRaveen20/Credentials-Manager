@@ -46,7 +46,7 @@ const META_SELECT = {
   createdById: true,
   createdAt: true,
   updatedAt: true,
-  _count: { select: { shares: true } },
+  _count: { select: { shares: true, groupShares: true } },
 } as const;
 
 function parseExpiresAt(raw: string | null | undefined): Date | null {
@@ -74,7 +74,7 @@ function mapMeta(row: {
   createdById: string;
   createdAt: Date;
   updatedAt: Date;
-  _count: { shares: number };
+  _count: { shares: number; groupShares: number };
 }) {
   return {
     id: row.id,
@@ -91,6 +91,7 @@ function mapMeta(row: {
     lastRotatedAt: row.lastRotatedAt,
     createdById: row.createdById,
     shareCount: row._count.shares,
+    groupShareCount: row._count.groupShares,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -120,6 +121,11 @@ export class CredentialsService {
       OR: [
         { createdById: user.internalUserId },
         { shares: { some: { userId: user.internalUserId } } },
+        {
+          groupShares: {
+            some: { group: { members: { some: { userId: user.internalUserId } } } },
+          },
+        },
       ],
     };
   }

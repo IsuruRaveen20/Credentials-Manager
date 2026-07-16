@@ -34,4 +34,24 @@ export class SharesController {
   ) {
     return this.shares.unshare(id, userId, user);
   }
+
+  @Post("groups")
+  @RequirePermissions(PERMISSIONS.CREDENTIAL_SHARE)
+  shareGroup(
+    @Param("id") id: string,
+    @CurrentUser() user: RequestUser,
+    @Body() body: unknown,
+  ) {
+    return this.shares.shareWithGroup(id, user, body);
+  }
+
+  @Delete("groups/:groupId")
+  @RequirePermissions(PERMISSIONS.CREDENTIAL_SHARE)
+  unshareGroup(
+    @Param("id") id: string,
+    @Param("groupId") groupId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.shares.unshareGroup(id, groupId, user);
+  }
 }

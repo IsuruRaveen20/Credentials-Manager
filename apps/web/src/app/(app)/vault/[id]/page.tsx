@@ -468,7 +468,10 @@ export default function CredentialDetailPage() {
                 {meta.lastRotatedAt && (
                   <PropRow k="Last rotated" v={new Date(meta.lastRotatedAt).toLocaleString()} />
                 )}
-                <PropRow k="Shared with" v={`${meta.shareCount ?? 0} people`} />
+                <PropRow
+                  k="Shared with"
+                  v={`${meta.shareCount ?? 0} people · ${meta.groupShareCount ?? 0} groups`}
+                />
                 <PropRow k="Created" v={new Date(meta.createdAt).toLocaleDateString()} />
                 <PropRow k="Updated" v={new Date(meta.updatedAt).toLocaleDateString()} />
                 <PropRow k="ID" v={meta.id.slice(0, 8) + "…"} />

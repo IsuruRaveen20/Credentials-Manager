@@ -22,7 +22,27 @@ const PERMISSION_KEYS = [
   "role:assign",
   "audit:read",
   "org:admin",
+  "group:manage",
 ] as const;
+
+/** Default teams seeded for every org — matches the common "who can see what" split. */
+const DEFAULT_GROUPS: { name: string; description: string; color: string }[] = [
+  {
+    name: "Senior Developers",
+    description: "Full-time senior engineers — broad access to production credentials.",
+    color: "#7C5CFC",
+  },
+  {
+    name: "Junior Developers",
+    description: "Junior engineers — access to staging / lower-risk credentials.",
+    color: "#3DA9FC",
+  },
+  {
+    name: "New Developers",
+    description: "Recently onboarded engineers — narrow, need-to-know access only.",
+    color: "#3DDC97",
+  },
+];
 
 const ROLE_PERMISSIONS: Record<string, readonly string[]> = {
   owner: PERMISSION_KEYS,
@@ -36,6 +56,22 @@ const ROLE_PERMISSIONS: Record<string, readonly string[]> = {
   viewer: ["credential:read", "credential:reveal"],
   auditor: ["credential:read", "audit:read"],
 };
+
+async function seedDefaultGroups(organizationId: string, createdById: string) {
+  for (const g of DEFAULT_GROUPS) {
+    await prisma.group.upsert({
+      where: { organizationId_name: { organizationId, name: g.name } },
+      create: {
+        organizationId,
+        name: g.name,
+        description: g.description,
+        color: g.color,
+        createdById,
+      },
+      update: {},
+    });
+  }
+}
 
 async function main() {
   await prisma.organization.upsert({
@@ -121,6 +157,8 @@ async function main() {
       roleId: ownerRole.id,
     },
   });
+
+  await seedDefaultGroups(DEFAULT_ORG_ID, owner.id);
 
   // Dev-token persona (AUTH_MODE hybrid/dev) — separate from admin password login
   const adminRole = await prisma.role.findUniqueOrThrow({ where: { name: "admin" } });

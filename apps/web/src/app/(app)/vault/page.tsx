@@ -18,6 +18,7 @@ type CredentialRow = {
   tags: string[];
   notesPresent: boolean;
   shareCount?: number;
+  groupShareCount?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -278,7 +279,9 @@ function VaultPageInner() {
                     </span>
                   </td>
                   <td>
-                    <span className="vo-table-meta">{r.shareCount ?? 0}</span>
+                    <span className="vo-table-meta" title="People + groups shared with">
+                      {(r.shareCount ?? 0) + (r.groupShareCount ?? 0)}
+                    </span>
                   </td>
                   <td>
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>

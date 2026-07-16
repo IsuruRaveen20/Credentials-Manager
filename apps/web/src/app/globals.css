@@ -253,6 +253,17 @@
   min-height: 52px;
   position: relative;
 }
+.vo-sb-brand-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+.vo-sb-brand-link:hover .vo-sb-brand-product {
+  color: var(--accent);
+}
 .vo-sb-brand-sep {
   width: 1px;
   height: 18px;

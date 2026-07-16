@@ -13,6 +13,21 @@ type ShareRow = {
   lastName: string | null;
 };
 
+type GroupShareRow = {
+  id: string;
+  groupId: string;
+  name: string;
+  color: string | null;
+  memberCount: number;
+};
+
+type SharesResponse = {
+  count: number;
+  shares: ShareRow[];
+  groupCount: number;
+  groups: GroupShareRow[];
+};
+
 type Employee = {
   id: string;
   email: string;
@@ -21,24 +36,49 @@ type Employee = {
   status: string;
 };
 
+type Group = {
+  id: string;
+  name: string;
+  color: string | null;
+  memberCount: number;
+};
+
+function GroupDot({ color }: { color: string | null }) {
+  return (
+    <span
+      aria-hidden
+      style={{
+        display: "inline-block",
+        width: 8,
+        height: 8,
+        borderRadius: 999,
+        background: color || "var(--fg-3)",
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
 export function SharePanel({ credentialId }: { credentialId: string }) {
   const toast = useToast();
   const { can, ready } = useAccess();
   const [count, setCount] = useState(0);
   const [shares, setShares] = useState<ShareRow[]>([]);
+  const [groupShares, setGroupShares] = useState<GroupShareRow[]>([]);
+  const [allGroups, setAllGroups] = useState<Group[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [groupBusyId, setGroupBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const data = await apiFetch<{ count: number; shares: ShareRow[] }>(
-        `/credentials/${credentialId}/shares`,
-      );
+      const data = await apiFetch<SharesResponse>(`/credentials/${credentialId}/shares`);
       setCount(data.count);
       setShares(data.shares);
+      setGroupShares(data.groups ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load shares");
     }
@@ -49,6 +89,12 @@ export function SharePanel({ credentialId }: { credentialId: string }) {
   }, [load]);
 
   useEffect(() => {
+    void apiFetch<Group[]>("/groups")
+      .then(setAllGroups)
+      .catch(() => setAllGroups([]));
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     void apiFetch<Employee[]>("/employees")
       .then(setEmployees)
@@ -56,6 +102,8 @@ export function SharePanel({ credentialId }: { credentialId: string }) {
   }, [open]);
 
   const sharedIds = useMemo(() => new Set(shares.map((s) => s.userId)), [shares]);
+  const sharedGroupIds = useMemo(() => new Set(groupShares.map((g) => g.groupId)), [groupShares]);
+
   const filtered = employees.filter((e) => {
     if (e.status !== "active" || sharedIds.has(e.id)) return false;
     const q = search.toLowerCase();
@@ -63,6 +111,14 @@ export function SharePanel({ credentialId }: { credentialId: string }) {
     const name = `${e.firstName ?? ""} ${e.lastName ?? ""} ${e.email}`.toLowerCase();
     return name.includes(q);
   });
+
+  function requireShareAccess(): boolean {
+    if (ready && !can(PERMS.CREDENTIAL_SHARE)) {
+      toast.error(ACCESS_DENIED.title, ACCESS_DENIED.credentialShare);
+      return false;
+    }
+    return true;
+  }
 
   async function shareWith(userId: string) {
     setBusy(true);
@@ -99,18 +155,88 @@ export function SharePanel({ credentialId }: { credentialId: string }) {
     }
   }
 
+  async function toggleGroup(group: Group, isShared: boolean) {
+    if (!requireShareAccess()) return;
+    setGroupBusyId(group.id);
+    setError(null);
+    try {
+      if (isShared) {
+        await apiFetch(`/credentials/${credentialId}/shares/groups/${group.id}`, {
+          method: "DELETE",
+        });
+        toast.success("Group access revoked", group.name);
+      } else {
+        await apiFetch(`/credentials/${credentialId}/shares/groups`, {
+          method: "POST",
+          body: JSON.stringify({ groupId: group.id }),
+        });
+        toast.success("Shared with group", group.name);
+      }
+      await load();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Update failed";
+      setError(msg);
+      toast.error("Update failed", msg);
+    } finally {
+      setGroupBusyId(null);
+    }
+  }
+
   return (
     <div className="vo-sidecard" style={{ marginBottom: 12 }}>
       <div className="vo-sidecard-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span>Shared access</span>
-        <span className="vo-muted" style={{ fontSize: 12 }}>{count} people</span>
+        <span className="vo-muted" style={{ fontSize: 12 }}>
+          {count} {count === 1 ? "person" : "people"} · {groupShares.length} {groupShares.length === 1 ? "group" : "groups"}
+        </span>
       </div>
 
       {error && (
         <p style={{ color: "var(--danger)", fontSize: 12, padding: "0 14px 8px" }}>{error}</p>
       )}
 
+      {allGroups.length > 0 && (
+        <div style={{ padding: "8px 14px", borderBottom: "1px solid var(--hairline)" }}>
+          <div className="vo-muted" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
+            Groups
+          </div>
+          <div style={{ display: "grid", gap: 2 }}>
+            {allGroups.map((g) => {
+              const isShared = sharedGroupIds.has(g.id);
+              return (
+                <label
+                  key={g.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "5px 0",
+                    fontSize: 13,
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isShared}
+                    disabled={groupBusyId === g.id}
+                    onChange={() => void toggleGroup(g, isShared)}
+                  />
+                  <GroupDot color={g.color} />
+                  <span style={{ flex: 1, minWidth: 0 }}>{g.name}</span>
+                  <span className="vo-muted" style={{ fontSize: 11 }}>
+                    {g.memberCount} {g.memberCount === 1 ? "member" : "members"}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div style={{ padding: "8px 14px", display: "grid", gap: 8 }}>
+        <div className="vo-muted" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          People
+        </div>
         {shares.map((s) => (
           <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
             <div style={{ minWidth: 0 }}>
@@ -130,16 +256,13 @@ export function SharePanel({ credentialId }: { credentialId: string }) {
             </button>
           </div>
         ))}
-        {shares.length === 0 && <p className="vo-muted" style={{ fontSize: 12 }}>Not shared yet.</p>}
+        {shares.length === 0 && <p className="vo-muted" style={{ fontSize: 12 }}>Not shared with anyone individually.</p>}
 
         <button
           type="button"
           className="vo-btn vo-btn-webmee"
           onClick={() => {
-            if (ready && !can(PERMS.CREDENTIAL_SHARE)) {
-              toast.error(ACCESS_DENIED.title, ACCESS_DENIED.credentialShare);
-              return;
-            }
+            if (!requireShareAccess()) return;
             setOpen((v) => !v);
           }}
         >

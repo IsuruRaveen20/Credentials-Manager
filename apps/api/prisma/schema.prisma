@@ -34,6 +34,11 @@ model User {
   auditLogs        AuditLog[]
   sharesReceived   CredentialShare[] @relation("ShareRecipient")
   sharesGranted    CredentialShare[] @relation("ShareGrantor")
+
+  groupsCreated      Group[]                @relation("GroupCreator")
+  groupMemberships   GroupMember[]          @relation("GroupMembership")
+  groupMembersAdded  GroupMember[]          @relation("GroupMemberAdder")
+  groupSharesGranted CredentialGroupShare[] @relation("GroupShareGrantor")
 }
 
 model Organization {
@@ -45,6 +50,7 @@ model Organization {
   credentials  Credential[]
   userRoles    UserRole[]
   categories   CredentialCategory[]
+  groups       Group[]
 }
 
 model OrganizationMember {
@@ -119,9 +125,10 @@ model Credential {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdBy    User              @relation("CredentialCreator", fields: [createdById], references: [id])
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User                   @relation("CredentialCreator", fields: [createdById], references: [id])
   shares       CredentialShare[]
+  groupShares  CredentialGroupShare[]
 
   @@index([organizationId, category])
   @@index([organizationId, expiresAt])
@@ -154,6 +161,58 @@ model CredentialShare {
 
   @@unique([credentialId, userId])
   @@index([userId])
+}
+
+/** Org-managed team, e.g. "Senior developers" — used to bulk-share vault records. */
+model Group {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  description    String?
+  /** Optional swatch shown as the group's badge color in the UI. */
+  color          String?
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User                   @relation("GroupCreator", fields: [createdById], references: [id])
+  members      GroupMember[]
+  shares       CredentialGroupShare[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model GroupMember {
+  id        String   @id @default(uuid())
+  groupId   String
+  userId    String
+  addedById String
+  createdAt DateTime @default(now())
+
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user    User  @relation("GroupMembership", fields: [userId], references: [id], onDelete: Cascade)
+  addedBy User  @relation("GroupMemberAdder", fields: [addedById], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+}
+
+/** Shares a credential with every current + future member of a Group. */
+model CredentialGroupShare {
+  id           String   @id @default(uuid())
+  credentialId String
+  groupId      String
+  grantedById  String
+  createdAt    DateTime @default(now())
+
+  credential Credential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  group      Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  grantedBy  User       @relation("GroupShareGrantor", fields: [grantedById], references: [id], onDelete: Cascade)
+
+  @@unique([credentialId, groupId])
+  @@index([groupId])
 }
 
 model AuditLog {

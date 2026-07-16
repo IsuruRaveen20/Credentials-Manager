@@ -10,3 +10,4 @@ coverage
 .pnpm-store
 backups/
 .cursor/
+apps/api/prisma/schema.verify.prisma

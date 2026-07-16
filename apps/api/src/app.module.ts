@@ -9,6 +9,7 @@ import { CategoriesModule } from "./categories/categories.module";
 import { CredentialsModule } from "./credentials/credentials.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { EmployeesModule } from "./employees/employees.module";
+import { GroupsModule } from "./groups/groups.module";
 import { HealthController } from "./health/health.controller";
 import { MailModule } from "./mail/mail.module";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -38,6 +39,7 @@ import { UsersModule } from "./users/users.module";
     CategoriesModule,
     SharesModule,
     EmployeesModule,
+    GroupsModule,
     DashboardModule,
     SecurityModule,
   ],

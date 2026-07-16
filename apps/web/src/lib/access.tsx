@@ -15,6 +15,7 @@ export const PERMS = {
   ROLE_ASSIGN: "role:assign",
   AUDIT_READ: "audit:read",
   ORG_ADMIN: "org:admin",
+  GROUP_MANAGE: "group:manage",
 } as const;
 
 export type Permission = (typeof PERMS)[keyof typeof PERMS] | string;
@@ -29,6 +30,7 @@ export const ACCESS_DENIED = {
   employeeInvite: "Your role can’t invite employees.",
   employeeManage: "Your role can’t manage employees.",
   roleAssign: "Your role can’t change employee roles.",
+  groupManage: "Your role can’t create or manage groups. Ask an admin.",
   generic: "Your role doesn’t include permission for this action.",
 } as const;
 

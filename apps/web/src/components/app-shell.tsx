@@ -81,12 +81,23 @@ function RolesIcon(p: React.SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+function GroupsIcon(p: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <circle cx="8" cy="8" r="3" />
+      <circle cx="17" cy="9" r="2.5" />
+      <path d="M2.5 20c.6-3.6 3-5.5 5.5-5.5s4.9 1.9 5.5 5.5" />
+      <path d="M14.5 15c2 .2 3.7 1.8 4.1 4.4" />
+    </svg>
+  );
+}
 
 const WORKSPACE_NAV: SbItem[] = [
   { href: "/dashboard", Icon: DashboardIcon, label: "Dashboard", match: (p) => p.startsWith("/dashboard") },
   { href: "/vault", Icon: VaultIcon, label: "Vault", match: (p) => p === "/vault" || p.startsWith("/vault/") },
   { href: "/categories", Icon: FolderIcon, label: "Credential categories", match: (p) => p.startsWith("/categories") },
   { href: "/employees", Icon: TeamIcon, label: "Employees", match: (p) => p.startsWith("/employees") },
+  { href: "/groups", Icon: GroupsIcon, label: "Groups", match: (p) => p.startsWith("/groups") },
   { href: "/roles", Icon: RolesIcon, label: "Roles", match: (p) => p.startsWith("/roles") },
 ];
 
@@ -105,6 +116,7 @@ const TITLE_BY_PATH: { test: (p: string) => boolean; title: string }[] = [
   { test: (p) => p.startsWith("/threats"), title: "Threat alerts" },
   { test: (p) => p.startsWith("/encryption"), title: "Encryption status" },
   { test: (p) => p.startsWith("/employees"), title: "Employees" },
+  { test: (p) => p.startsWith("/groups"), title: "Groups" },
   { test: (p) => p.startsWith("/roles"), title: "Roles" },
   { test: (p) => p.startsWith("/ssh-keys"), title: "SSH keys" },
   { test: (p) => p.startsWith("/settings"), title: "Settings" },
@@ -205,10 +217,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <aside id={navId} className="vo-sb" aria-label="Main navigation">
         <div className="vo-sb-brand">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/webmee-logo.png" alt="WebMee" className="vo-brand-logo" width={110} height={26} />
-          <span className="vo-sb-brand-sep" aria-hidden />
-          <span className="vo-sb-brand-product">VaultOps</span>
+          <Link href="/dashboard" className="vo-sb-brand-link" onClick={closeNav}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/webmee-logo.png" alt="WebMee" className="vo-brand-logo" width={110} height={26} />
+            <span className="vo-sb-brand-sep" aria-hidden />
+            <span className="vo-sb-brand-product">VaultOps</span>
+          </Link>
           <button
             type="button"
             className="vo-sb-close"

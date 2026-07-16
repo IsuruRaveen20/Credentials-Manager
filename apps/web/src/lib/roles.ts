@@ -36,6 +36,7 @@ export const ROLE_CAPABILITIES: RoleCapability[] = [
   { id: "role:assign", label: "Assign roles" },
   { id: "audit:read", label: "Read audit log" },
   { id: "org:admin", label: "Organization admin" },
+  { id: "group:manage", label: "Create & manage groups" },
 ];
 
 /** Matches `apps/api/prisma/seed.ts` ROLE_PERMISSIONS (assignable roles). */
@@ -51,6 +52,7 @@ export const ROLE_PERMISSION_SET: Record<AssignableRole, ReadonlySet<string>> = 
     "role:assign",
     "audit:read",
     "org:admin",
+    "group:manage",
   ]),
   editor: new Set([
     "credential:read",

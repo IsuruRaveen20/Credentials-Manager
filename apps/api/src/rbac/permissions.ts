@@ -9,6 +9,7 @@ export const PERMISSIONS = {
   ROLE_ASSIGN: "role:assign",
   AUDIT_READ: "audit:read",
   ORG_ADMIN: "org:admin",
+  GROUP_MANAGE: "group:manage",
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

@@ -35,6 +35,7 @@ export type CredentialMeta = {
   createdAt: string;
   updatedAt: string;
   shareCount?: number;
+  groupShareCount?: number;
 };
 
 const LOGIN_KINDS: { value: LoginKind; label: string; hint: string }[] = [

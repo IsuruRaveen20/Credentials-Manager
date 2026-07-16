@@ -229,6 +229,7 @@ export class EmployeesService {
       data: { status: "disabled", inviteTokenHash: null, inviteExpiresAt: null },
     });
     await this.prisma.credentialShare.deleteMany({ where: { userId } });
+    await this.prisma.groupMember.deleteMany({ where: { userId } });
     const revoked = await this.prisma.userRole.findMany({
       where: { userId, organizationId: actor.organizationId },
       include: { role: { select: { name: true } } },
