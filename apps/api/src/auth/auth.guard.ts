@@ -69,8 +69,11 @@ export class AuthGuard implements CanActivate {
       }
     }
 
-    // Dev bootstrap token — only when Clerk JWKS is unset (never in Clerk-backed staging)
-    if (!jwksUrl && token === "dev-token") {
+    // Dev bootstrap token — only when Clerk JWKS is unset AND explicitly opted in.
+    // Defaults OFF so a password-only production deploy (no Clerk) never exposes
+    // this as a standing admin backdoor. Docker dev opts in via ALLOW_DEV_TOKEN_AUTH=true.
+    const allowDevToken = this.config.get<string>("ALLOW_DEV_TOKEN_AUTH", "false") === "true";
+    if (!jwksUrl && allowDevToken && token === "dev-token") {
       const ctx = await this.usersService.resolveRequestContext({
         clerkId: "dev-user",
         email: "dev@localhost",
@@ -104,7 +107,9 @@ export class AuthGuard implements CanActivate {
 
     throw new UnauthorizedException(
       "Invalid token. Login via POST /auth/login" +
-        (authMode !== "clerk" ? " or use Bearer dev-token when CLERK_JWKS_URL is unset." : "."),
+        (authMode !== "clerk" && allowDevToken
+          ? " or use Bearer dev-token when CLERK_JWKS_URL is unset."
+          : "."),
     );
   }
 }

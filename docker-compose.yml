@@ -49,6 +49,9 @@ services:
       USE_LOCAL_KMS: "true"
       LOCAL_KMS_MASTER_KEY: ${LOCAL_KMS_MASTER_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
       KMS_PROVIDER: local
+      # Dev-only bootstrap login (Bearer dev-token). Must stay unset/false outside Docker dev —
+      # see apps/api/src/auth/auth.guard.ts.
+      ALLOW_DEV_TOKEN_AUTH: "true"
       CLERK_JWKS_URL: ${CLERK_JWKS_URL:-}
       CLERK_ISSUER: ${CLERK_ISSUER:-}
       CLERK_AUDIENCE: ${CLERK_AUDIENCE:-}

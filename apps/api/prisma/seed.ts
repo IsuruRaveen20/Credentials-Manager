@@ -160,43 +160,47 @@ async function main() {
 
   await seedDefaultGroups(DEFAULT_ORG_ID, owner.id);
 
-  // Dev-token persona (AUTH_MODE hybrid/dev) — separate from admin password login
-  const adminRole = await prisma.role.findUniqueOrThrow({ where: { name: "admin" } });
-  const dev = await prisma.user.upsert({
-    where: { email: "dev@localhost" },
-    create: {
-      email: "dev@localhost",
-      clerkId: "dev-user",
-      firstName: "Dev",
-      lastName: "User",
-      status: "active",
-      emailVerifiedAt: new Date(),
-    },
-    update: {
-      clerkId: "dev-user",
-      status: "active",
-      firstName: "Dev",
-      lastName: "User",
-    },
-  });
-  await prisma.organizationMember.upsert({
-    where: {
-      organizationId_userId: { organizationId: DEFAULT_ORG_ID, userId: dev.id },
-    },
-    create: { organizationId: DEFAULT_ORG_ID, userId: dev.id },
-    update: {},
-  });
-  const hasAdmin = await prisma.userRole.findFirst({
-    where: { userId: dev.id, organizationId: DEFAULT_ORG_ID, roleId: adminRole.id },
-  });
-  if (!hasAdmin) {
-    await prisma.userRole.create({
-      data: {
-        organizationId: DEFAULT_ORG_ID,
-        userId: dev.id,
-        roleId: adminRole.id,
+  // Dev-token persona (AUTH_MODE hybrid/dev) — opt-in only. Gated behind the same
+  // ALLOW_DEV_TOKEN_AUTH flag the API guard checks, so a production seed run never
+  // creates this standing admin backdoor account. Docker dev sets the flag to "true".
+  if (process.env.ALLOW_DEV_TOKEN_AUTH === "true") {
+    const adminRole = await prisma.role.findUniqueOrThrow({ where: { name: "admin" } });
+    const dev = await prisma.user.upsert({
+      where: { email: "dev@localhost" },
+      create: {
+        email: "dev@localhost",
+        clerkId: "dev-user",
+        firstName: "Dev",
+        lastName: "User",
+        status: "active",
+        emailVerifiedAt: new Date(),
+      },
+      update: {
+        clerkId: "dev-user",
+        status: "active",
+        firstName: "Dev",
+        lastName: "User",
       },
     });
+    await prisma.organizationMember.upsert({
+      where: {
+        organizationId_userId: { organizationId: DEFAULT_ORG_ID, userId: dev.id },
+      },
+      create: { organizationId: DEFAULT_ORG_ID, userId: dev.id },
+      update: {},
+    });
+    const hasAdmin = await prisma.userRole.findFirst({
+      where: { userId: dev.id, organizationId: DEFAULT_ORG_ID, roleId: adminRole.id },
+    });
+    if (!hasAdmin) {
+      await prisma.userRole.create({
+        data: {
+          organizationId: DEFAULT_ORG_ID,
+          userId: dev.id,
+          roleId: adminRole.id,
+        },
+      });
+    }
   }
 
   // Title-case existing category labels (legacy lowercase rows)

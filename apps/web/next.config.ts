@@ -51,6 +51,10 @@ function contentSecurityPolicy(): string {
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@vaultops/shared"],
+  // Standalone output: PM2 runs `.next/standalone/apps/web/server.js` directly
+  // with a pruned node_modules tree — smaller footprint on memory-constrained
+  // hosts (matches the pattern already used for HearMee on the same EC2 box).
+  output: "standalone",
   async headers() {
     return [
       {

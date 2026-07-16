@@ -40,7 +40,7 @@ pnpm --filter @vaultops/api exec prisma db seed
 1. **No public signup routes** — access is `/login` + invite accept (`/accept-invite`).
 2. **Admin** comes from `ADMIN_*` env vars → `apps/api/prisma/seed.ts`.
 3. **Employees** are invited from `/employees` (requires `employee:invite`).
-4. Bearer token: JWT from `/auth/login` stored as `vaultops_access_token` in localStorage. Fallback `dev-token` only for hybrid/dev.
+4. Bearer token: JWT from `/auth/login` stored as `vaultops_access_token` in localStorage. Fallback `dev-token` only when `ALLOW_DEV_TOKEN_AUTH=true` (Docker dev sets this; must stay unset/false in any deployment without Clerk, or it's a standing admin backdoor).
 
 ## Categories & credentials
 
@@ -78,3 +78,4 @@ pnpm --filter @vaultops/api exec prisma db seed
 | Dashboard UI | `apps/web/src/app/(app)/dashboard/page.tsx` |
 | App chrome | `apps/web/src/components/app-shell.tsx`, `globals.css` |
 | Add credential | `apps/web/src/components/add-credential-dialog.tsx` |
+| Deploy to EC2 (no Docker, alongside HearMee) | `docs/ec2-deploy-alongside-hearmee.md`, `ecosystem.config.js` |
